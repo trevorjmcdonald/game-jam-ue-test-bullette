@@ -17,6 +17,9 @@ public class Bullette : ModuleRules
 		PublicDependencyModuleNames.AddRange(new string[] { "UMG", "ModelViewViewModel", "FieldNotification" });
 		PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
 
+		// UBulletteAudioSettings is a UDeveloperSettings (Project Settings > Game > Bullette Audio).
+		PrivateDependencyModuleNames.Add("DeveloperSettings");
+
 		// StateTree runs enemy behaviour (UStateTreeComponent, custom tasks and conditions).
 		PublicDependencyModuleNames.AddRange(new string[] { "StateTreeModule", "GameplayStateTreeModule" });
 

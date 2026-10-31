@@ -11,6 +11,7 @@
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "Game/BulletteGameMode.h"
+#include "Game/BulletteSettingsSubsystem.h"
 #include "GameplayEffect.h"
 #include "InputMappingContext.h"
 #include "Progression/BulletteLevelingComponent.h"
@@ -39,7 +40,10 @@ void ABullettePlayerController::BeginPlay()
 	{
 		if (ensureMsgf(DefaultMappingContext, TEXT("%s has no DefaultMappingContext assigned"), *GetName()))
 		{
-			Subsystem->AddMappingContext(DefaultMappingContext, 0);
+			// Registers the context's player-mappable keys, so rebinding in the options screen applies to it.
+			FModifyContextOptions Options;
+			Options.bNotifyUserSettings = true;
+			Subsystem->AddMappingContext(DefaultMappingContext, 0, Options);
 		}
 	}
 
@@ -49,6 +53,10 @@ void ABullettePlayerController::BeginPlay()
 		HUDWidget->AddToViewport();
 	}
 
+	if (const UBulletteSettingsSubsystem* Settings = UBulletteSettingsSubsystem::Get(this))
+	{
+		Settings->ApplyVolumes();
+	}
 	MusicComponent = BulletteAudio::PlayMusic(this, RunMusic);
 }
 
@@ -94,13 +102,14 @@ void ABullettePlayerController::OpenPauseMenu()
 	{
 		PauseMenuWidget = CreateWidget<UBullettePauseMenuWidget>(this, PauseMenuWidgetClass);
 		PauseMenuWidget->OnResume.BindUObject(this, &ABullettePlayerController::ClosePauseMenu);
+		PauseMenuWidget->SetPauseAction(PauseAction);
 	}
 	PauseMenuWidget->AddToViewport(5);
 	BulletteAudio::PlaySound(this, PauseSound, true, 0.0f);
 
 	SetPause(true);
 	FInputModeUIOnly InputMode;
-	InputMode.SetWidgetToFocus(PauseMenuWidget->GetDefaultFocusButton()->TakeWidget());
+	InputMode.SetWidgetToFocus(PauseMenuWidget->GetDefaultFocusWidget()->TakeWidget());
 	SetInputMode(InputMode);
 	SetShowMouseCursor(true);
 }
@@ -283,13 +292,28 @@ void ABullettePlayerController::ShowGameOver()
 {
 	const ABulletteGameMode* GameMode = GetWorld()->GetAuthGameMode<ABulletteGameMode>();
 	const UBulletteLevelingComponent* Leveling = GetPawn() ? GetPawn()->FindComponentByClass<UBulletteLevelingComponent>() : nullptr;
-	const int32 Seconds = GameMode ? FMath::FloorToInt(GameMode->GetRunTimeSeconds()) : 0;
+	const float SurvivedSeconds = GameMode ? static_cast<float>(GameMode->GetRunTimeSeconds()) : 0.0f;
+	const int32 Kills = GameMode ? GameMode->GetKills() : 0;
+	const int32 Seconds = FMath::FloorToInt(SurvivedSeconds);
 
 	FNumberFormattingOptions TwoDigits;
 	TwoDigits.MinimumIntegralDigits = 2;
-	const FText Stats = FText::Format(NSLOCTEXT("Bullette", "GameOverStats", "Survived {0}:{1}\nLevel {2}\n{3} kills"),
-		FText::AsNumber(Seconds / 60), FText::AsNumber(Seconds % 60, &TwoDigits),
-		FText::AsNumber(Leveling ? Leveling->GetLevel() : 1), FText::AsNumber(GameMode ? GameMode->GetKills() : 0));
+	auto FormatTime = [&TwoDigits](int32 TotalSeconds)
+	{
+		return FText::Format(NSLOCTEXT("Bullette", "RunTime", "{0}:{1}"), FText::AsNumber(TotalSeconds / 60), FText::AsNumber(TotalSeconds % 60, &TwoDigits));
+	};
+
+	// Recorded once per run: the game over screen only appears once before the level reloads.
+	FText BestLine;
+	if (UBulletteSettingsSubsystem* Settings = UBulletteSettingsSubsystem::Get(this))
+	{
+		BestLine = Settings->RecordRun(SurvivedSeconds, Kills)
+			? NSLOCTEXT("Bullette", "NewBest", "New best!")
+			: FText::Format(NSLOCTEXT("Bullette", "Best", "Best {0}"), FormatTime(FMath::FloorToInt(Settings->GetBestSurvivedSeconds())));
+	}
+
+	const FText Stats = FText::Format(NSLOCTEXT("Bullette", "GameOverStats", "Survived {0}\nLevel {1}\n{2} kills\n{3}"),
+		FormatTime(Seconds), FText::AsNumber(Leveling ? Leveling->GetLevel() : 1), FText::AsNumber(Kills), BestLine);
 
 	if (!GameOverWidget)
 	{

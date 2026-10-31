@@ -13,9 +13,10 @@ A complete but unbalanced loop:
 - **Three enemy types:** skeleton minion, a slow tanky warrior, and a ranged mage.
 - **Screens:** a HUD, level-up choices, a game over screen with restart, a main menu and a pause menu.
 - **Audio:** chiptune music and arcade sound effects.
+- **Options:** volume sliders and keyboard/gamepad rebinding, saved between sessions, plus a best-run record.
 - **Runs on the Steam Deck** under Proton.
 
-Not yet: settings, balancing and polish.
+Not yet: balancing and polish.
 
 ## Controls
 
@@ -34,7 +35,9 @@ The project leans on Unreal's built-in systems on purpose, to learn them:
 - **Niagara:** the chain lightning effect, triggered through a gameplay cue.
 - **UMG + MVVM:** the HUD is driven by view model bindings.
 - **Curve tables:** per-level weapon stats come from `SourceData/WeaponStats.csv`.
-- **Enhanced Input and Gameplay Tags.**
+- **Enhanced Input:** including its player-mappable key settings for rebinding.
+- **Sound classes and a sound mix** for the volume settings, and a **save game** for settings and the best run.
+- **Gameplay Tags.**
 
 Enemies are plain actors rather than Mass entities; about 2,000 at once still ran at 85–120 fps on the dev PC.
 

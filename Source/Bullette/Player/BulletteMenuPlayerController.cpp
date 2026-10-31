@@ -2,7 +2,7 @@
 
 #include "Audio/BulletteAudio.h"
 #include "Components/AudioComponent.h"
-#include "Components/Button.h"
+#include "Game/BulletteSettingsSubsystem.h"
 #include "UI/BulletteMenuWidget.h"
 
 void ABulletteMenuPlayerController::BeginPlay()
@@ -18,12 +18,16 @@ void ABulletteMenuPlayerController::BeginPlay()
 	MenuWidget->AddToViewport();
 
 	FInputModeUIOnly InputMode;
-	if (UButton* FocusButton = MenuWidget->GetDefaultFocusButton())
+	if (UWidget* Focus = MenuWidget->GetDefaultFocusWidget())
 	{
-		InputMode.SetWidgetToFocus(FocusButton->TakeWidget());
+		InputMode.SetWidgetToFocus(Focus->TakeWidget());
 	}
 	SetInputMode(InputMode);
 	SetShowMouseCursor(true);
 
+	if (const UBulletteSettingsSubsystem* Settings = UBulletteSettingsSubsystem::Get(this))
+	{
+		Settings->ApplyVolumes();
+	}
 	MusicComponent = BulletteAudio::PlayMusic(this, MenuMusic);
 }
