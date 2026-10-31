@@ -1,0 +1,22 @@
+# Unreal build and editor output (regenerated)
+Binaries/
+Intermediate/
+Saved/
+DerivedDataCache/
+Packaged/
+Build/Windows/FileOpenOrder/
+.vs/
+*.VC.db
+*.opensdf
+*.sdf
+*.suo
+*.sln
+*.slnx
+
+# Per-user editor content
+Content/Developers/
+Content/Collections/
+
+# Local Claude Code settings
+.claude/settings.local.json
+.claude/settings.local.json.*

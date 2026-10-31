@@ -1,0 +1,152 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project state
+
+Bullette is a small bullet heaven game. It's a practice run of the Claude + Unreal MCP workflow ahead of the Epic AI Megajam. Assets will come from KayKit, Quaternius, and Meshy. The project uses Unreal's built-in gameplay systems (GAS, Gameplay Tags, StateTree, Niagara, UMG/MVVM, Data Registry) on purpose, partly to find out which are worth using in a jam and which are faster to rebuild. Keep scope small.
+
+It's an Unreal Engine **5.8** C++ project created from the Blank template (`TP_Blank`, see the redirects in `Config/DefaultEngine.ini`). There's one primary game module, `Source/Bullette`. A complete but unbalanced loop works: the player's weapons fire on their own (four weapons: bolt, orbiting blades, chain lightning, boomerang axe), three enemy types (skeleton minion, slow tanky warrior, ranged mage run by a StateTree) hurt the player on contact or with projectiles, and when the player dies the game mode logs `RunOver survived_s=… kills=…` and a game over screen offers Restart. Enemies drop XP gems. Levelling up pauses the game and offers a choice of 3 upgrades (passives, new weapons, weapon level-ups) on a UMG screen. A HUD shows health, XP, level, run time, kills and the weapons held. Characters and weapons use KayKit art; the only VFX is the chain lightning beam (Niagara via a gameplay cue), and there's no audio yet. The game starts on a main menu (Play, Quit), and P/Escape/gamepad Start opens a pause menu (Resume, Main Menu, Quit). Menus work with a gamepad (the focused button is highlighted). The user wants balancing left until the loop is complete.
+
+Architecture (`Source/Bullette/`):
+- **`Game/`:** `ABulletteGameMode` counts kills and ends the run on player death: it calls `ABullettePlayerController::HandleRunOver`, which shows `WBP_GameOver` after `GameOverDelay` (pauses, focuses Restart → `RestartRun`). Without a `GameOverWidgetClass` the arena restarts by itself after `RestartDelay`. The controller resets the input mode to game-only in `BeginPlay`, because the viewport keeps the game over screen's UI-only mode across the level reload.
+  - **Main menu:** `/Game/Maps/L_MainMenu` (a copy of `L_Arena` without the spawner) is `GameDefaultMap`; its World Settings override the game mode with `BP_BulletteMenuGameMode` (a plain `GameModeBase` BP: no pawn, `BP_BulletteMenuPlayerController`). `ABulletteMenuPlayerController` shows `MenuWidgetClass` (`WBP_MainMenu`) with UI-only input.
+  - **Pause:** `ABullettePlayerController` binds `PauseAction` (`IA_Pause`: Escape, P, Gamepad_Special_Right in `IMC_Default`) and shows `PauseMenuWidgetClass` (`WBP_PauseMenu`), unless the game is already paused (level-up) or the run is over. While it's open input is UI-only, so the menu itself closes on its `ResumeKeys`.
+- **`Player/`:** a top-down `ACharacter` with an ASC and attribute set on the pawn itself (single-player, so no PlayerState). The controller adds the input mapping context and grants weapons. **The character sets up its ASC and attributes in `PostInitializeComponents`, not `BeginPlay`:** the controller grants the starting weapon on possession, which comes first, and the weapon activates straight away and reads `AttackSpeed` (reading 0 made the first attack wait 15 s).
+- **`Enemies/`:** `ABulletteEnemy` is a lightweight `APawn`, with no CharacterMovement, no controller and its own Tick. It chases the player and checks contact by distance in that Tick, not with overlap events. It has its own ASC (`Minimal` replication). `UBulletteEnemySubsystem` (a world subsystem) tracks live enemies for targeting. `ABulletteEnemySpawner` is placed in `L_Arena`, logs `EnemyStats`, and picks each enemy from `SpawnTable` (weight + first wave; minion 1 from wave 0, mage 0.12 from wave 3, warrior 0.15 from wave 5). **The placed spawner instance has its own copy of the table:** changing the Blueprint defaults through MCP didn't update it, so set both.
+  - Movement is the virtual `UpdateMovement` (default: chase). `MoveRelativeToTarget`, `FaceTarget` and `PlayBodyAnimation` are public for outside drivers; `RunAnimation`/`IdleAnimation` switch on the body mesh by recent movement (a timestamp, since StateTree movement ticks in a component, in either order with the actor).
+  - `BP_BulletteEnemy_Warrior` is a duplicate of `BP_BulletteEnemy` with different art and stats (no code). `BP_BulletteEnemy_Mage` is an `ABulletteCasterEnemy`: no default movement, a `UStateTreeComponent` (`Brain`) runs `Behavior` (`/Game/Enemies/ST_SkeletonMage`), and it fires `BP_BulletteEnemyProjectile` (distance-check hit on the player).
+  - **StateTree:** nodes are in `BulletteEnemyStateTreeNodes.h` (move toward/away, cast-then-recover task, distance-to-player condition). They reach the enemy through `Context.GetOwner()`, so the tree has no property bindings. The MCP StateTree toolset only inspects, so **`ST_SkeletonMage` is generated by code**: `BulletteStateTreeBuilder.cpp` (editor-only) adds the `Bullette.BuildStateTrees` console command, which builds `UStateTreeEditorData`, compiles it with `UStateTreeEditingSubsystem::CompileStateTree` and saves the asset (skips existing assets unless given `force`, so hand edits survive). Run it headless with the editor closed: `UnrealEditor-Cmd <uproject> -ExecCmds="Bullette.BuildStateTrees,QUIT_EDITOR" -unattended -nullrhi -nosplash` (ExecCmds splits on commas, and a running editor ignores plain `Quit`).
+- **`Weapons/`: each weapon is a Gameplay Ability.**
+  - `UBulletteWeaponAbility` (`InstancedPerActor`) activates itself in `OnAvatarSet` and runs until `CancelAllAbilities` on death. Periodic weapons override `Fire()`, called on an `AbilityTask_WaitDelay` loop every `Interval / AttackSpeed` (the task's world timer stops while the level-up screen pauses). Persistent weapons (the orbit) override `StartWeapon()`. Damage goes through `DealDamage` → `BulletteDamage::ApplyDamage`.
+  - **The weapon level is the ability level.** Picking a weapon again sets `Spec->Level`, `MarkAbilitySpecDirty`, then calls `OnWeaponLevelChanged()` on the primary instance. Per-level stats (`Damage`, `Interval`, `Count`, plus per-weapon ones) are `FScalableFloat`s pointing at rows of `/Game/Weapons/CT_WeaponStats`, a curve table imported from **`SourceData/WeaponStats.csv`** (constant interpolation, columns are levels 1–5). To rebalance, edit the CSV and push the changed rows with `CurveTableTools.set_keys` (or re-import it).
+  - `GA_Weapon_*` (`/Game/Weapons`) are the Blueprint subclasses: `Bolt` (Count projectiles at the nearest enemies), `Orbit` (Count blades; each hits like a spoke from the player to the blade, because enemies stack on the player's centre inside the orbit), `Chain` (strike, then Count jumps to the nearest unhit enemy), `Boomerang` (Count axes out to `Distance` and back, hitting each enemy once per leg). Helper actors (`ABulletteOrbitBlades`, `ABulletteBoomerang`, `ABulletteBeam`) are `NotBlueprintable` and configured by their ability.
+  - **Chain lightning VFX:** each jump executes the gameplay cue `GameplayCue.Weapon.ChainLightning` (native tag) with the effect context's origin = start and `Location` = end. `GC_Weapon_ChainLightning` (`/Game/Abilities`, a `UBulletteBeamCueNotify`) spawns `/Game/VFX/NS_ChainLightning` there (pooled) and sets its `User.BeamEnd`. Without `BeamCue` the ability falls back to `ABulletteBeam` cylinders. Cue notifies are found by tag, not referenced, so `/Game/Abilities` is in `DirectoriesToAlwaysCook` (`DefaultGame.ini`); otherwise packaged builds would silently have no beams.
+  - `ABulletteProjectile` sweeps `ECC_BulletteProjectile` itself each Tick, deliberately without ProjectileMovementComponent: it silently ignores hits that start inside an enemy, which is constant when enemies crowd the player. The other weapons hit with distance checks through `UBulletteEnemySubsystem` (`FindNearestEnemies`, `FindEnemiesInRadius`), which return copies so callers can kill while iterating.
+- **`AbilitySystem/`:** `UBulletteAttributeSet` has Health, MaxHealth and a `Damage` meta attribute that `PostGameplayEffectExecute` turns into Health loss; it fires `OnOutOfHealth` once. All damage goes through `BulletteDamage::ApplyDamage`, which applies a damage GE with the amount in the `SetByCaller.Damage` native tag. `GE_Damage` (`/Game/Abilities`) is that effect: Instant, AddBase on `Damage`, SetByCaller magnitude.
+- **Player stats are GAS attributes** in `UBulletteCombatSet`: `DamageScale` and `AttackSpeed` are player-wide multipliers on every weapon (start at 1; the set's constructor defaults them so they never read 0), `MoveSpeed` and `PickupRadius` come from the character's `Starting*` properties. Weapons read the multipliers on every attack, and MoveSpeed drives `MaxWalkSpeed` through an attribute-change delegate.
+- **Upgrades:**
+  - Each upgrade is a `UBulletteUpgradeDefinition` data asset. Weapons (`/Game/Upgrades/DA_Weapon_*`) set `WeaponAbility`: the first pick grants it, later picks raise its level, `MaxPicks` is the max level (5), and `BP_BullettePlayerController.StartingWeapon` (the bolt) counts as the first pick. `MaxWeapons` (4) stops new weapons being offered once the player holds that many. `LevelUpDescription` replaces `Description` on the card once the player has the upgrade.
+  - Passives (`/Game/Upgrades/DA_Upgrade_*`) point at a Gameplay Effect (`/Game/Abilities/Upgrades/GE_Upgrade_*`). Stat boosts are Infinite effects using `MultiplyAdditive`; the magnitude is the multiplier (1.25 = +25%), and stacks add (two picks = ×1.5). Heal is Instant. `MaxPicks` 0 means unlimited.
+  - `BP_BullettePlayerController.UpgradePool` lists the upgrades offered. **Adding a passive needs no code:** create a GE and a data asset, then add it to the pool. A new weapon needs a `UBulletteWeaponAbility` subclass, a `GA_` Blueprint, rows in the stats CSV and a `DA_Weapon_` asset.
+- **`Progression/`:** `ABulletteXPGem` uses a distance check against the player's PickupRadius, then flies to the player. `UBulletteLevelingComponent` on the player turns XP into levels. The player controller runs level-ups: it pauses, picks random eligible upgrades, applies the chosen upgrade (GE or weapon) to the player, and queues multiple level-ups.
+- **`UI/`:** C++ `UUserWidget` bases with `BindWidget` fields. The layouts are `WBP_LevelUp`, `WBP_UpgradeOption`, `WBP_GameOver`, `WBP_MainMenu` and `WBP_PauseMenu` in `/Game/UI`, authored through the UMG toolset. The widget names in those layouts must match the C++ `BindWidget` names. UMG buttons show no focus, so `UBulletteUpgradeOptionWidget` turns the focused card gold (`FocusedColor`) and moves focus to whichever card the mouse hovers; that's what makes the level-up screen usable with a gamepad. Button menus derive from `UBulletteMenuWidget`, which does the same for every `UButton` in the widget and has the shared Open Level/Quit actions (level targets are soft `UWorld` properties on the WBPs: `GameLevel`, `MainMenuLevel`).
+- **HUD (MVVM):**
+  - `UBulletteHUDViewModel` (`UMVVMViewModelBase`) holds display-ready FieldNotify fields: HealthPercent/HealthText, XPPercent, LevelText, TimeText, KillsText, WeaponsText (from `ABullettePlayerController::GetWeaponSummary`). Text is rebuilt and broadcast only when its source value changes.
+  - `UBulletteHUDWidget` creates the view model, hands it to the widget's MVVM view (`UMVVMSubsystem::GetViewFromUserWidget(this)->SetViewModelByClass`), logs `HUD view model bound`, and refreshes it in `NativeTick` from the pawn's ASC, the leveling component and the game mode.
+  - `WBP_HUD` has no `BindWidget`s and no graph. Its widgets are driven only by MVVM view bindings, made with `MVVMToolset.CreateViewBinding`: `sourceContext` is the view-model class, `destinationContext` is the widget path, and the property names are plain (`Percent`, `Text`).
+  - The player controller creates the HUD in `BeginPlay`.
+- **Collision:** two custom channels, defined in `DefaultEngine.ini` with default response Ignore and given names in `Bullette.h`. `ECC_BulletteEnemy` (`GameTraceChannel1`) is the enemy object type. `ECC_BulletteProjectile` (`GameTraceChannel2`) is a trace channel for projectile sweeps. Enemies block only projectile sweeps; they pass through the world, the player and each other.
+- **Enemy death** runs inside the damage effect's execution, so it never destroys the actor synchronously: it disables collision and Tick, plays `DeathAnimation` on the Blueprint's skeletal mesh and sets `SetLifeSpan(DeathDuration)` (or hides the actor with `SetLifeSpan(0.1)` if there's no animation). The starting map is `/Game/Maps/L_Arena`, a copy of the engine's Basic template (`Template_Default`, no World Partition). It's the `EditorStartupMap`; `GameDefaultMap` is the main menu. `GlobalDefaultGameMode` is `BP_BulletteGameMode`. `/Game/Abilities` is also the gameplay cue scan path. It's a git repository (branch `main`, no remote yet); `.uasset`/`.umap` and source art go through Git LFS (`.gitattributes`). Don't make LFS files `lockable`: locked-out files are read-only and editor/MCP saves fail. Save in the editor before committing.
+
+## Engine location
+
+The engine is a launcher install at `C:\Games\Epic Games\Games\UE_5.8` (the `.sln`/`.slnx` files reference it by relative path). The commands below use `$UE` for that path.
+
+## Commands
+
+Build the editor target (the one you need for editor work and tests):
+
+```
+"$UE\Engine\Build\BatchFiles\Build.bat" BulletteEditor Win64 Development -Project="C:\dev\claude-labs\unreal-engine\Bullette\Bullette.uproject" -WaitMutex
+```
+
+- Build the standalone game target: replace `BulletteEditor` with `Bullette`.
+- If the editor is open with Live Coding enabled, `Build.bat` refuses to build. Close the editor first, or recompile from inside it (Ctrl+Alt+F11).
+- Regenerate `Bullette.sln`/`.slnx` after you add or remove source files or modules:
+  ```
+  "$UE\Engine\Binaries\DotNET\UnrealBuildTool\UnrealBuildTool.exe" -projectfiles -project="C:\dev\claude-labs\unreal-engine\Bullette\Bullette.uproject" -game -rocket -progress
+  ```
+
+Run automation tests headlessly (none exist yet; the filter matches on test-name prefix, so pass a full test path to run a single test):
+
+```
+"$UE\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" "C:\dev\claude-labs\unreal-engine\Bullette\Bullette.uproject" -ExecCmds="Automation RunTests Bullette; Quit" -unattended -nullrhi -nosplash -log
+```
+
+Logs go to `Saved/Logs/Bullette.log`.
+
+## Build configuration
+
+- Targets (`Source/*.Target.cs`) use `BuildSettingsVersion.V7` and `EngineIncludeOrderVersion.Unreal5_8`. Keep these in sync if you add more targets.
+- Input uses Enhanced Input (`DefaultPlayerInputClass`/`DefaultInputComponentClass` in `Config/DefaultInput.ini`). Use Input Actions and Mapping Contexts, not legacy axis/action mappings.
+- Rendering (`Config/DefaultEngine.ini`): Lumen GI and reflections, Virtual Shadow Maps, hardware ray tracing, mesh distance fields, **Substrate** materials, DX12/SM6, and no static lighting. Materials should be authored for Substrate.
+- Runtime plugins enabled explicitly in `Bullette.uproject`: GameplayAbilities, ModelViewViewModel, StateTree, GameplayStateTree, Niagara. Editor-only module dependencies (`StateTreeEditorModule`, `PropertyBindingUtils`, `AssetRegistry`) sit behind `if (Target.bBuildEditor)` in `Bullette.Build.cs`; code using them is wrapped in `#if WITH_EDITOR`.
+- When gameplay code starts using another engine system, add the matching modules to `Bullette.Build.cs` and make sure the runtime plugins (`GameplayAbilities`, `StateTree`/`GameplayStateTree`, `DataRegistry`, ...) are explicitly enabled in `Bullette.uproject`, rather than relying on toolset dependencies.
+- Edit `Bullette.uproject` only while the editor is closed; the running editor rewrites it.
+- Source lives in feature subfolders of `Source/Bullette/` (`Game/`, `Player/`, `Enemies/`, ...). Build settings V7 doesn't put the module root on the include path, so `Bullette.Build.cs` adds it with `PublicIncludePaths.Add(ModuleDirectory)`. Use module-relative includes (`"Enemies/BulletteEnemy.h"`, `"Bullette.h"`). Log through `LogBullette`, declared in `Bullette.h`.
+- Gameplay classes are `UCLASS(Abstract)` C++ bases. Their `BP_` Blueprint subclasses assign assets (input actions, mapping contexts, meshes), and the game uses the BPs.
+- **A C++ `UPROPERTY` must not share a name with a component added in a subclass Blueprint.** `BP_BulletteEnemy` failed to compile with an empty error list when C++ gained a `Body` property next to the BP's `Body` mesh (the C++ one is now `BodyMesh`).
+- **Live Coding (`LiveCodingToolset.CompileLiveCoding`) works with the editor open, including new `UCLASS`es and properties,** because re-instancing is enabled in the editor's Live Coding settings. Blueprints can be created from new classes straight away. It writes `UnrealEditor-Bullette.patch_N.dll` and leaves the main DLL alone, so the next editor launch asks to rebuild the module; accept, or run `Build.bat` while the editor is closed. Use a full build for new modules, plugin changes, or `Build.cs` dependency changes.
+- Launcher-engine gotcha: engine plugins only compile on the fly from `Engine/Plugins/Marketplace/`. `VisualStudioTools` was installed directly in `Engine/Plugins/` and broke every build (`Expecting to find a type ... named 'VisualStudioTools' in 'UE5Rules'`), so it was moved to `Engine/Plugins/Marketplace/VisualStudioTools`. If a Visual Studio update reinstalls it to the old spot, move it again. Never delete or rename `Engine/Intermediate/Build/BuildRules/UE5Rules.dll`; installed engines can't rebuild it.
+
+## Unreal MCP (editor automation)
+
+The `ModelContextProtocol` plugin (experimental) runs an MCP server inside the editor at `http://127.0.0.1:8765/mcp`. `.mcp.json` points there, and the editor regenerates that file with the `ModelContextProtocol.GenerateClientConfig ClaudeCode` console command. Port 8000 (the default) is taken by an unrelated `Manager.exe` on this machine. If the server returns `ECONNRESET`, check that the port in Editor Preferences → Plugins → Unreal MCP matches `.mcp.json`. The editor must be running for any of these tools to work.
+
+**Auto-start:** the plugin defaults `bAutoStartServer` to false, so it's set to true (with the port) in the checked-in `Config/DefaultEditorPerProjectUserSettings.ini`, where cleanup of saved settings can't remove it. If the editor is up but the connection is refused (`ECONNREFUSED`), look for `Starting MCP server on port 8765` in `Saved/Logs/Bullette.log`. If it's missing, the user can run `ModelContextProtocol.StartServer` in the editor console. A Claude session that failed to connect at startup needs `/mcp` → reconnect.
+
+Tool search is on, so the server exposes only `list_toolsets`, `describe_toolset` and `call_tool`. Run `describe_toolset` before using a toolset. With `call_tool`, pass the **short** tool name (e.g. `get_current_level`) plus `toolset_name`. Passing the fully qualified name fails with "Unknown tool".
+
+Each toolset is its own engine plugin in `Bullette.uproject`. Known gaps:
+- **GAS, StateTree, and Data Registry toolsets inspect but don't author.** Gameplay Effects can still be authored without them:
+  1. `BlueprintTools.create` with parent `/Script/GameplayAbilities.GameplayEffect`.
+  2. `ObjectTools.set_properties` on `Modifiers`, for example `{"attribute": {"attributeName": "Damage", "attribute": "/Script/Bullette.BulletteAttributeSet:Damage", "attributeOwner": {"refPath": "/Script/Bullette.BulletteAttributeSet"}}, "modifierOp": "AddBase", "modifierMagnitude": {"magnitudeCalculationType": "SetByCaller", "setByCallerMagnitude": {"dataName": "", "dataTag": {"tagName": "SetByCaller.Damage"}}}}`.
+
+  Write attribute sets, abilities and StateTree tasks in C++. Use the GAS inspector to check runtime state in PIE.
+- **The Physics toolset only covers Physics Assets (ragdolls).** Collision channels live in `Config/DefaultEngine.ini`; edit them with the editor closed, then rebuild.
+- **UMG through MCP:**
+  - Use `UMGToolSet.CreateWidgetBlueprint` with a C++ parent, `AddWidget` (`parentWidget: null` makes the root) and `ToggleWidgetAsVariable`. Edit widget and slot properties with `ObjectTools` on the paths it returns (`...:WidgetTree.Name`, `...:WidgetTree.Parent.SlotType_N`).
+  - Then run `CompileWidgetBlueprint`, which reports missing `BindWidget` names.
+  - Property names that work: TextBlock `Text`, `Font{fontObject,typefaceFontName,size}`, `ColorAndOpacity{specifiedColor,colorUseRule}`, `Justification`; Button `BackgroundColor`; Border `BrushColor`; slot `Padding`, `HorizontalAlignment`, `VerticalAlignment`.
+  - `FText` properties accept plain strings.
+  - CanvasPanel slots use `LayoutData{offsets{left,top,right,bottom}, anchors{minimum{x,y}, maximum{x,y}}, alignment{x,y}}` plus `bAutoSize`. SizeBox uses `WidthOverride`, `HeightOverride` and the matching `bOverride_*` flags. ProgressBar uses `Percent` and `FillColorAndOpacity`.
+- **`list_properties` on big classes, and `BlueprintTools` schemas, are too large to read inline** (a GameplayEffect schema is 115 KB). They get saved to a file; parse that with `python -I` and pull out the sub-schema you need.
+- **AnimationAssistant covers Control Rig and Sequencer, not retargeting.** Making KayKit, Quaternius and Meshy skeletons share animations may need manual editor work.
+- **UMG:** call `ObjectTools.list_properties` before `set_properties` on any widget or slot. Property names can't be guessed, and wrong ones fail silently.
+- **`editor_toolset...ProgrammaticToolset`** batches many tool calls in one sandboxed Python script. Use it for bulk work such as placing many actors.
+- **After editing Blueprint defaults, run `BlueprintTools.compile_blueprint` before PIE.** Otherwise PIE runs the old values.
+- **`ObjectTools.reset_properties` fails on Blueprint class defaults** (`'BlueprintGeneratedClass' object has no attribute 'get_super_class'`). Set the old value explicitly instead.
+- **Blueprint-added components** (`ActorTools.add_component` on the BP asset) are edited at `/Game/.../BP_X.BP_X_C:<Name>_GEN_VARIABLE`.
+- **`ObjectTools.set_properties` on a Blueprint asset path edits its class defaults.** Class references use the `_C` generated class path. Instanced sub-objects such as input modifiers are created by passing their class path (e.g. `{"refPath": "/Script/EnhancedInput.InputModifierNegate"}`). Read the values back with `get_properties` to confirm.
+- **New assets:** `DataAssetTools.create` works for any `UDataAsset` subclass (input actions, mapping contexts). `BlueprintTools.create` takes a C++ parent class (`/Script/Bullette.<Class>`). Call `AssetTools.save_assets` afterwards, because nothing is saved automatically. There's no tool for new levels: `AssetTools.duplicate` a **project** map (e.g. `L_Arena`), then `save_assets(["/Game/Maps/L_New"])` explicitly. Duplicating an engine map (`/Engine/Maps/Entry`) can't be saved ("Illegal reference to private object ... Model"), and the unsaved copy then blocks `load_level`. Edit a map by loading it: its World Settings actor is found with `SceneTools.find_actors(actor_type=/Script/Engine.WorldSettings)` (named `WorldSettings_1` in `L_MainMenu`).
+- **`SceneTools.load_level` refuses if the current level (or the target) has unsaved changes.** `AssetTools.save_assets(["/Game/Maps/L_Arena"])` with the level's path saves it; no tool can discard changes.
+- **`EditorAppToolset.StartPIE` sometimes reports "PIE ended before warmup completed"** (with `warmupSeconds` > 0), but PIE keeps running. Check with `IsPIERunning`. `warmupSeconds: 0` returns cleanly.
+- **Call shapes that aren't obvious:** `ObjectTools.set_properties` takes `values` as a **JSON string**, not an object. `AssetTools.save_assets` takes `asset_paths` (an empty list saves everything dirty). `StartPIE` takes `options{bSimulate, playMode: "PlayMode_InViewPort", warmupSeconds}`. `FScalableFloat` is `{"value": 1, "curve": {"curveTable": {"refPath": ...}, "rowName": "Bolt.Damage"}}`; `FTransform` is `{"location":{x,y,z}, "rotation":{pitch,yaw,roll}, "scale":{x,y,z}}`. Probe an unknown signature by calling the tool with `{}`; the error prints its schema.
+- **More call shapes:** `MVVMToolset.CreateViewBinding` requires `conversionName` (pass `""`). `ObjectTools.set_properties` can't shrink an array and change its elements in one call ("removed elements are ambiguous"); keep the length and change values (e.g. weight 0). `ActorTools.add_component(owner, component_type, name)` adds a Blueprint component; `AssetTools.duplicate(path, new_path)` copies an asset (the easy way to make an enemy variant).
+- **Niagara through MCP works** (`NiagaraToolset_System`): `CreateNiagaraSystem` needs a template system (an empty one is refused, so start from `/Niagara/DefaultAssets/Templates/Systems/MinimalLightweight` and `RemoveEmitter` its emitter), `AddEmitter` from `/Niagara/DefaultAssets/Templates/Emitters/*`, `AddUserVariables`, and `SetStackInputData` with input refs `{system, emitterName, scriptName: "EmitterUpdateScript"|"ParticleSpawnScript"|..., moduleName, rendererIndex: -1, inputNameStack: [inputName]}`. Link an input to a user variable with the `NiagaraExt_StackInputData_Linked` struct (`linkedVariable.name = "User.X"`). NiagaraBool true is `-1`. Templates loop forever by default; set EmitterState `Loop Behavior` to Once for one-shot effects or auto-destroy never fires.
+- **`CurveTableTools.import_file`** imports a CSV as a curve table (`RCIM_Constant` for per-level stats); `set_keys` replaces one row's keys.
+- **Seeing the game:** run `tools/editor-shot.ps1 -Out <scratch>.png` during PIE and Read the PNG. It captures only the editor window. Don't use `EditorAppToolset.CaptureEditorImage`/`CaptureViewport` for this; they return the PNG as inline base64 text. `-ProcessId` picks a standalone `-game` window instead.
+- **Pressing keys in PIE:** `tools/editor-keys.ps1 -Keys P,Down,Enter` posts key presses to the editor window (no focus change), which drives menus, pause and Restart. Escape stops PIE in the editor, so pause with P there.
+- **Testing one weapon:** set `BP_BullettePlayerController.StartingWeapon` to its `DA_Weapon_*`, compile, run PIE, compare kills or time to `LevelUp level=2` (the run is deterministic with a still player: with no working weapon it ends at `RunOver survived_s=11.1 kills=0`). Set it back to `DA_Weapon_Bolt` afterwards. To keep a test run from pausing on the level-up screen, raise `BP_BullettePlayerCharacter`'s `Leveling` `FirstLevelXP` (5 normally) and put it back afterwards. To test one enemy type, give the other `SpawnTable` entries weight 0 on the placed spawner.
+- **Catching a short VFX in a screenshot:** temporarily lengthen its lifetime, then restore it. Counting pixels in the PNGs works with a few lines of C# through PowerShell (`System.Drawing` `LockBits`); there's no Pillow.
+- **To verify gameplay without input:** start PIE with the player standing still and wait in the background for `LogBullette` lines (`EnemyStats`, `RunOver`) in `Saved/Logs/Bullette.log`. Stop PIE afterwards; otherwise it keeps dying and restarting.
+- **Inherited C++ components on a Blueprint** (e.g. a mesh's `OverrideMaterials`) can be set through `ObjectTools` on the class default object's component path, `/Game/.../BP_X.Default__BP_X_C:ComponentName`. The value survives a recompile. Find the paths with `BlueprintTools.get_default_object` and `ActorTools.get_components`.
+- **Restarting the editor (the user has approved this when a restart is needed):**
+  1. `AssetTools.save_assets([])` saves everything unsaved; check with `is_dirty`.
+  2. In PowerShell, run `(Get-Process UnrealEditor).CloseMainWindow()` and `WaitForExit`. If it doesn't exit, a dialog is probably open; tell the user rather than force-killing.
+  3. Run `Build.bat`, then UBT `-projectfiles` if source files were added.
+  4. `Start-Process` `UnrealEditor.exe` with the `.uproject`.
+
+  The MCP port comes up within seconds, and the tools reconnect on their own; no `/mcp` needed.
+- **Enemy baseline (2026-10-30, this PC, PIE, enemies clumped on a still player):**
+  - 300, 1000 and 2000 actor enemies all stay around 85–120 fps.
+  - Spawning 400+ enemies in one frame causes 30–60 ms spikes.
+  - So plain actors are fine for now and Mass isn't needed. Spread big waves over several frames, or pool enemies, before raising counts.
+- **Measuring performance in PIE:** the editor drops to 3 fps (333 ms frames) whenever it isn't the focused window ("Use Less CPU when in Background"), and otherwise caps at 120 fps. Ignore 333 ms samples. A steady 8.33 ms only means "under the cap", not the real cost.
+
+## Skills
+
+`.claude/skills/` holds the project's own `bullette-*` skills and the `ue-*` skills from github.com/quodsoler/unreal-engine-skills (MIT license, Markdown only, targets UE 5.8). Use the matching skill before writing UE C++ in its area (e.g. `ue-gameplay-abilities`, `ue-module-build-system`, `ue-input-system`). To update them, copy the repo's `skills/` folder over this one again.
+
+## Art import and Steam Deck
+
+These workflows live in project skills, loaded when needed:
+- **`bullette-import-art`:** importing KayKit/Quaternius/Meshy files from `SourceArt/` (ImportAssets commandlet, the glTF pipeline, KayKit rig facts, the current player and enemy art setup).
+- **`bullette-steam-deck`:** packaging and deploying to the Deck with `tools/deploy-deck.ps1` (Proton, VC++ runtime, Deck graphics profile, Deck baseline and logs, cook gotchas).
+
+**Never pass an MCP `-ini:...ModelContextProtocolSettings...` override to a commandlet** (imports, cooks). Commandlets already skip MCP auto-start. An override setting `bAutoStartServer=False` got saved back to `Saved/Config` by the cook, which wiped the editor's auto-start and left the next editor launch with no MCP server.
+
+## Generated directories
+
+`Binaries/`, `Intermediate/`, `Saved/`, `DerivedDataCache/`, `Packaged/` and `.vs/` are build and editor output. Don't edit them by hand.
