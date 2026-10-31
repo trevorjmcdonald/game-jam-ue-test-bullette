@@ -5,7 +5,7 @@ description: Import art into Bullette (KayKit, Quaternius, Meshy .glb/.gltf/.fbx
 
 # Importing art into Bullette
 
-Source files live in `SourceArt/<Pack>/`, outside `Content/`, together with the pack's licence. `$UE` is `C:\Games\Epic Games\Games\UE_5.8`.
+Source files live in `SourceArt/<Pack>/`, outside `Content/`, together with the pack's licence. `$UE` is the UE 5.8 install directory (see Engine location in CLAUDE.md).
 
 **No MCP tool imports glTF.** `SkeletalMeshTools.import_file` exists but only handles FBX/OBJ (it goes through `FbxFactory`). Import glTF with the **ImportAssets commandlet**, which works while the editor is open; the running editor picks up the new assets on its own:
 
@@ -19,13 +19,13 @@ The import exits cleanly in about 7 s. Don't add an MCP `-ini` override (see CLA
 
 - **glTF imports go through `/Game/Art/Pipelines/PL_GLTFCharacter`,** a copy of the engine's `DefaultGLTFAssetsPipeline` with `CombineSkeletalMeshesBehavior=BySkeleton` and `bCreatePhysicsAsset=false`. The engine default splits KayKit characters into 9 skeletal meshes with 9 physics assets.
   - The override lives in `InterchangeProjectSettings.ContentImportSettings.pipelineStacks.assets.perTranslatorPipelines`, under the glTF translator.
-  - `ConfigSettingsToolset` saved it to `Saved/Config/WindowsEditor/Engine.ini`, which is local to this machine, not `DefaultEngine.ini`.
-- **Folder auto-import doesn't work for `.glb` or `.gltf`.** The editor's monitor only watches extensions that a legacy `UFactory` registers, and none registers glTF (FBX would work). `SourceArt/` is mapped to `/Game/Art/` in the editor's auto-reimport settings, with prompts off, but for `.glb` that mapping does nothing.
+  - `ConfigSettingsToolset` saved it to `Saved/Config/WindowsEditor/Engine.ini`, which is per-machine and not in the repo, not `DefaultEngine.ini`. On a fresh clone, recreate the override (or move it into `DefaultEngine.ini`).
+- **Folder auto-import doesn't work for `.glb` or `.gltf`.** The editor's monitor only watches extensions that a legacy `UFactory` registers, and none registers glTF (FBX would work). An auto-reimport mapping from `SourceArt/` to `/Game/Art/` (editor preferences, per-machine) does nothing for `.glb`.
 - **A commandlet can't save assets the editor has loaded.** Importing the Knight couldn't re-save the shared skeleton for that reason; the import still worked because the Knight reuses the existing skeleton unchanged.
 
 ## KayKit facts
 
-- KayKit characters (CC0, Kay Lousberg) share one 41-bone rig and embed all their animations; Skeleton_Minion has 95, the Knight 76. Import result: 1 skeletal mesh, 1 skeleton, materials, a texture and one AnimSequence per clip, named `<Mesh><Clip>`. Source `.glb` files come from the sibling project `../../ruin/assets/models/{enemies,hoard}`.
+- KayKit characters (CC0, Kay Lousberg) share one 41-bone rig and embed all their animations; Skeleton_Minion has 95, the Knight 76. Import result: 1 skeletal mesh, 1 skeleton, materials, a texture and one AnimSequence per clip, named `<Mesh><Clip>`. The `.glb` files are the ones from the KayKit Adventurers and Skeletons packs (kaylousberg.com / itch.io).
 - The Knight import landed on the existing `Skeleton_Minion_Skeleton`, but the Barbarian (imported with the editor closed) got its own `Barbarian_ArmLeft_Skeleton`. Check which skeleton a new character got before assuming it can share animations; retargeting or assigning the shared skeleton may be needed.
 - **Prop meshes (weapons, shields) keep the offset of the hand that held them,** about (-90, 50, 105) from their pivot. Get the real centre with `StaticMeshTools.get_bounds` and cancel it in whatever transform places the mesh (location = -(rotation × scale × centre)). `1H_Sword` lies flat along +Y (tip at +Y); `1H_Axe` lies flat with its handle along +Y.
 - **They face +Y after import.** Unreal actors face +X, so give the mesh component a yaw of -90.

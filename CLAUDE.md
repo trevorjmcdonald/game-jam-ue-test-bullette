@@ -44,27 +44,27 @@ Architecture (`Source/Bullette/`):
 
 ## Engine location
 
-The engine is a launcher install at `C:\Games\Epic Games\Games\UE_5.8` (the `.sln`/`.slnx` files reference it by relative path). The commands below use `$UE` for that path.
+The engine is an Epic launcher install of UE 5.8. Its folder is recorded in `%ProgramData%\Epic\UnrealEngineLauncher\LauncherInstalled.dat` (the `InstallationList` entry with `AppName` `UE_5.8`; `tools/deploy-deck.ps1` reads it from there). The commands below use `$UE` for that folder and `$Project` for the absolute path of `Bullette.uproject` in this repo.
 
 ## Commands
 
 Build the editor target (the one you need for editor work and tests):
 
 ```
-"$UE\Engine\Build\BatchFiles\Build.bat" BulletteEditor Win64 Development -Project="C:\dev\claude-labs\unreal-engine\Bullette\Bullette.uproject" -WaitMutex
+"$UE\Engine\Build\BatchFiles\Build.bat" BulletteEditor Win64 Development -Project="$Project" -WaitMutex
 ```
 
 - Build the standalone game target: replace `BulletteEditor` with `Bullette`.
 - If the editor is open with Live Coding enabled, `Build.bat` refuses to build. Close the editor first, or recompile from inside it (Ctrl+Alt+F11).
 - Regenerate `Bullette.sln`/`.slnx` after you add or remove source files or modules:
   ```
-  "$UE\Engine\Binaries\DotNET\UnrealBuildTool\UnrealBuildTool.exe" -projectfiles -project="C:\dev\claude-labs\unreal-engine\Bullette\Bullette.uproject" -game -rocket -progress
+  "$UE\Engine\Binaries\DotNET\UnrealBuildTool\UnrealBuildTool.exe" -projectfiles -project="$Project" -game -rocket -progress
   ```
 
 Run automation tests headlessly (none exist yet; the filter matches on test-name prefix, so pass a full test path to run a single test):
 
 ```
-"$UE\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" "C:\dev\claude-labs\unreal-engine\Bullette\Bullette.uproject" -ExecCmds="Automation RunTests Bullette; Quit" -unattended -nullrhi -nosplash -log
+"$UE\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" "$Project" -ExecCmds="Automation RunTests Bullette; Quit" -unattended -nullrhi -nosplash -log
 ```
 
 Logs go to `Saved/Logs/Bullette.log`.
@@ -85,7 +85,7 @@ Logs go to `Saved/Logs/Bullette.log`.
 
 ## Unreal MCP (editor automation)
 
-The `ModelContextProtocol` plugin (experimental) runs an MCP server inside the editor at `http://127.0.0.1:8765/mcp`. `.mcp.json` points there, and the editor regenerates that file with the `ModelContextProtocol.GenerateClientConfig ClaudeCode` console command. Port 8000 (the default) is taken by an unrelated `Manager.exe` on this machine. If the server returns `ECONNRESET`, check that the port in Editor Preferences → Plugins → Unreal MCP matches `.mcp.json`. The editor must be running for any of these tools to work.
+The `ModelContextProtocol` plugin (experimental) runs an MCP server inside the editor at `http://127.0.0.1:8765/mcp`. `.mcp.json` points there, and the editor regenerates that file with the `ModelContextProtocol.GenerateClientConfig ClaudeCode` console command. The port is 8765 rather than the plugin's default 8000, which other software commonly uses. If the server returns `ECONNRESET`, check that the port in Editor Preferences → Plugins → Unreal MCP matches `.mcp.json`. The editor must be running for any of these tools to work.
 
 **Auto-start:** the plugin defaults `bAutoStartServer` to false, so it's set to true (with the port) in the checked-in `Config/DefaultEditorPerProjectUserSettings.ini`, where cleanup of saved settings can't remove it. If the editor is up but the connection is refused (`ECONNREFUSED`), look for `Starting MCP server on port 8765` in `Saved/Logs/Bullette.log`. If it's missing, the user can run `ModelContextProtocol.StartServer` in the editor console. A Claude session that failed to connect at startup needs `/mcp` → reconnect.
 
@@ -132,7 +132,7 @@ Each toolset is its own engine plugin in `Bullette.uproject`. Known gaps:
   4. `Start-Process` `UnrealEditor.exe` with the `.uproject`.
 
   The MCP port comes up within seconds, and the tools reconnect on their own; no `/mcp` needed.
-- **Enemy baseline (2026-10-30, this PC, PIE, enemies clumped on a still player):**
+- **Enemy baseline (2026-10-30, a high-end dev PC, PIE, enemies clumped on a still player):**
   - 300, 1000 and 2000 actor enemies all stay around 85–120 fps.
   - Spawning 400+ enemies in one frame causes 30–60 ms spikes.
   - So plain actors are fine for now and Mass isn't needed. Spread big waves over several frames, or pool enemies, before raising counts.
@@ -140,7 +140,7 @@ Each toolset is its own engine plugin in `Bullette.uproject`. Known gaps:
 
 ## Skills
 
-`.claude/skills/` holds the project's own `bullette-*` skills and the `ue-*` skills from github.com/quodsoler/unreal-engine-skills (MIT license, Markdown only, targets UE 5.8). Use the matching skill before writing UE C++ in its area (e.g. `ue-gameplay-abilities`, `ue-module-build-system`, `ue-input-system`). To update them, copy the repo's `skills/` folder over this one again.
+`.claude/skills/` holds the project's own `bullette-*` skills and the `ue-*` skills from github.com/quodsoler/unreal-engine-skills (MIT license, Markdown only, targets UE 5.8). Use the matching skill before writing UE C++ in its area (e.g. `ue-gameplay-abilities`, `ue-module-build-system`, `ue-input-system`). To update them, copy the repo's `skills/` folder over this one again (keep the `bullette-*` skills and `LICENSE-unreal-engine-skills`). The `ue-*` skills mention an optional `.agents/ue-project-context.md`. This project doesn't have one; `CLAUDE.md` covers the same ground. They're left as upstream wrote them so updates stay a plain copy.
 
 ## Art import and Steam Deck
 

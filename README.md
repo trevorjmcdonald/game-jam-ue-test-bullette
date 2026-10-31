@@ -64,7 +64,7 @@ Open `Bullette.uproject` and let Unreal build the module, or right-click it and 
 - Characters and weapons: [KayKit](https://kaylousberg.com) Adventurers and Skeletons packs by Kay Lousberg (CC0).
 - Music: [Retro Game Music Pack](https://opengameart.org/content/5-chiptunes-action) by Juhani Junkala (CC0).
 - Sound effects: [Kenney](https://kenney.nl) audio packs (CC0). `SourceAudio/README.md` lists which file each sound came from.
-- Unreal Engine skills in `.claude/skills/ue-*` and `.agents/skills/ue-*`: [quodsoler/unreal-engine-skills](https://github.com/quodsoler/unreal-engine-skills) (MIT).
+- Unreal Engine skills in `.claude/skills/ue-*`: [quodsoler/unreal-engine-skills](https://github.com/quodsoler/unreal-engine-skills) (MIT).
 
 ## License
 
