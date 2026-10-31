@@ -34,3 +34,5 @@ powershell -File tools/deploy-deck.ps1 -AddToSteam    # first deploy only: adds 
     powershell -File tools/deploy-deck.ps1
     ```
     The staging run takes about a minute. The whole cook (with cached shaders) took about 15 minutes.
+  - **2026-10-31: no hang, and fast.** A `-Package` after adding audio (625 packages) cooked in 9 s and the whole BuildCookRun took 41 s, exiting cleanly. Watch for the hang anyway; it may come back after bigger changes.
+  - **The cook writes to the Zen store** (`Saved/Cooked/Windows/ue.projectstore`), so `Saved/Cooked` has no loose `.uasset`s to check. To confirm an asset shipped, search the packaged table of contents: `grep -c -a <AssetName> Packaged/Windows/Bullette/Content/Paks/Bullette-Windows.utoc`.
