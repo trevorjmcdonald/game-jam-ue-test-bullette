@@ -19,6 +19,10 @@ void UBulletteChainLightningAbility::Fire()
 	ABulletteEnemy* Target = Enemies->FindNearestEnemy(From, Range);
 	const float HitDamage = GetDamage();
 	const int32 Jumps = GetCount();
+	if (Target)
+	{
+		PlayFireSound();
+	}
 
 	TArray<const AActor*> Struck;
 	for (int32 Strike = 0; Target && Strike <= Jumps; ++Strike)

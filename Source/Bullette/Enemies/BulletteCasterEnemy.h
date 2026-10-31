@@ -50,4 +50,8 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ranged Attack")
 	TObjectPtr<UAnimationAsset> CastAnimation;
+
+	/** Played when a projectile is fired. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ranged Attack")
+	TObjectPtr<USoundBase> FireSound;
 };

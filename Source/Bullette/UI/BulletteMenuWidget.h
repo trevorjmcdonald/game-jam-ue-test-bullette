@@ -5,6 +5,7 @@
 #include "BulletteMenuWidget.generated.h"
 
 class UButton;
+class USoundBase;
 class UWorld;
 
 /**
@@ -31,7 +32,18 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Style")
 	FLinearColor FocusedColor = FLinearColor(0.95f, 0.65f, 0.15f);
 
+	/** Played when focus moves from one button to another (not when the menu opens). */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Audio")
+	TObjectPtr<USoundBase> FocusSound;
+
+	/** Played when any button is clicked. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Audio")
+	TObjectPtr<USoundBase> ClickSound;
+
 private:
+	UFUNCTION()
+	void HandleAnyButtonClicked();
+
 	struct FMenuButton
 	{
 		TWeakObjectPtr<UButton> Button;
@@ -39,4 +51,7 @@ private:
 		bool bShowingFocus = false;
 	};
 	TArray<FMenuButton> Buttons;
+
+	/** The button that had focus last tick, or null if none did. */
+	TWeakObjectPtr<UButton> LastFocusedButton;
 };

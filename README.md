@@ -12,9 +12,10 @@ A complete but unbalanced loop:
 - **Passive upgrades:** damage, attack speed, max health, move speed, pickup radius and heal.
 - **Three enemy types:** skeleton minion, a slow tanky warrior, and a ranged mage.
 - **Screens:** a HUD, level-up choices, a game over screen with restart, a main menu and a pause menu.
+- **Audio:** chiptune music and arcade sound effects.
 - **Runs on the Steam Deck** under Proton.
 
-Not yet: audio, settings, balancing and polish.
+Not yet: settings, balancing and polish.
 
 ## Controls
 
@@ -61,6 +62,8 @@ Open `Bullette.uproject` and let Unreal build the module, or right-click it and 
 ## Credits
 
 - Characters and weapons: [KayKit](https://kaylousberg.com) Adventurers and Skeletons packs by Kay Lousberg (CC0).
+- Music: [Retro Game Music Pack](https://opengameart.org/content/5-chiptunes-action) by Juhani Junkala (CC0).
+- Sound effects: [Kenney](https://kenney.nl) audio packs (CC0). `SourceAudio/README.md` lists which file each sound came from.
 - Unreal Engine skills in `.claude/skills/ue-*` and `.agents/skills/ue-*`: [quodsoler/unreal-engine-skills](https://github.com/quodsoler/unreal-engine-skills) (MIT).
 
 ## License

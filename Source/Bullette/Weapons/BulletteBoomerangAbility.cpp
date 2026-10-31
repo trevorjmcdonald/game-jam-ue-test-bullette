@@ -15,6 +15,8 @@ void UBulletteBoomerangAbility::Fire()
 		return;
 	}
 
+	PlayFireSound();
+
 	FVector Aim = Target->GetActorLocation() - Avatar->GetActorLocation();
 	Aim.Z = 0.0;
 	const double AimYaw = Aim.Rotation().Yaw;

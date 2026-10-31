@@ -4,6 +4,7 @@
 #include "GameFramework/PlayerController.h"
 #include "BullettePlayerController.generated.h"
 
+class UAudioComponent;
 class UBulletteGameOverWidget;
 class UBulletteHUDWidget;
 class UBulletteLevelUpWidget;
@@ -11,6 +12,7 @@ class UBullettePauseMenuWidget;
 class UBulletteUpgradeDefinition;
 class UInputAction;
 class UInputMappingContext;
+class USoundBase;
 
 /**
  * Adds the default Enhanced Input mapping context for the local player, and runs the level-up flow:
@@ -71,6 +73,27 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Level Up", meta = (ClampMin = "1"))
 	int32 MaxWeapons = 4;
 
+	/** Plays from the start of the run until the player dies. Set it to loop on the asset. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Audio")
+	TObjectPtr<USoundBase> RunMusic;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Audio", meta = (ClampMin = "0", Units = "s"))
+	float MusicFadeOutSeconds = 1.0f;
+
+	/** Played when the level-up screen opens. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Audio")
+	TObjectPtr<USoundBase> LevelUpSound;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Audio")
+	TObjectPtr<USoundBase> UpgradeChosenSound;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Audio")
+	TObjectPtr<USoundBase> PauseSound;
+
+	/** Played when the game over screen appears. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Audio")
+	TObjectPtr<USoundBase> GameOverSound;
+
 private:
 	void HandleLevelUp(int32 NewLevel);
 	void ShowNextLevelUp();
@@ -95,6 +118,9 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UBullettePauseMenuWidget> PauseMenuWidget;
+
+	UPROPERTY()
+	TObjectPtr<UAudioComponent> MusicComponent;
 
 	FTimerHandle GameOverTimer;
 	FText WeaponSummary;

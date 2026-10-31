@@ -6,6 +6,7 @@
 #include "BulletteWeaponAbility.generated.h"
 
 class UGameplayEffect;
+class USoundBase;
 
 /**
  * Base for auto-firing weapons. A weapon is a granted ability that activates itself as soon as it has an avatar
@@ -46,6 +47,12 @@ protected:
 	virtual void Fire() {}
 
 	float GetStat(const FScalableFloat& Stat) const;
+
+	/** Plays FireSound. Fire() implementations call it when they actually attack (not when there's no target). */
+	void PlayFireSound() const;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Weapon|Audio")
+	TObjectPtr<USoundBase> FireSound;
 
 	/** Instant effect that adds SetByCaller.Damage to the target's Damage attribute. */
 	UPROPERTY(EditDefaultsOnly, Category = "Weapon")

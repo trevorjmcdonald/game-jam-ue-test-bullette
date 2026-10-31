@@ -2,6 +2,8 @@
 
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
+#include "Audio/BulletteAudio.h"
+#include "Components/AudioComponent.h"
 #include "Components/Button.h"
 #include "Bullette.h"
 #include "EnhancedInputComponent.h"
@@ -46,6 +48,8 @@ void ABullettePlayerController::BeginPlay()
 		HUDWidget = CreateWidget<UBulletteHUDWidget>(this, HUDWidgetClass);
 		HUDWidget->AddToViewport();
 	}
+
+	MusicComponent = BulletteAudio::PlayMusic(this, RunMusic);
 }
 
 void ABullettePlayerController::OnPossess(APawn* InPawn)
@@ -92,6 +96,7 @@ void ABullettePlayerController::OpenPauseMenu()
 		PauseMenuWidget->OnResume.BindUObject(this, &ABullettePlayerController::ClosePauseMenu);
 	}
 	PauseMenuWidget->AddToViewport(5);
+	BulletteAudio::PlaySound(this, PauseSound, true, 0.0f);
 
 	SetPause(true);
 	FInputModeUIOnly InputMode;
@@ -164,6 +169,7 @@ void ABullettePlayerController::ShowNextLevelUp()
 	{
 		LevelUpWidget->AddToViewport();
 	}
+	BulletteAudio::PlaySound(this, LevelUpSound, true, 0.0f);
 
 	SetPause(true);
 	FInputModeUIOnly InputMode;
@@ -178,6 +184,7 @@ void ABullettePlayerController::ShowNextLevelUp()
 void ABullettePlayerController::HandleUpgradeChosen(const UBulletteUpgradeDefinition* Upgrade)
 {
 	ApplyUpgrade(Upgrade);
+	BulletteAudio::PlaySound(this, UpgradeChosenSound, true, 0.0f);
 
 	--PendingLevelUps;
 	if (PendingLevelUps > 0)
@@ -258,6 +265,11 @@ void ABullettePlayerController::RebuildWeaponSummary()
 
 bool ABullettePlayerController::HandleRunOver()
 {
+	if (MusicComponent)
+	{
+		MusicComponent->FadeOut(MusicFadeOutSeconds, 0.0f);
+	}
+
 	if (!GameOverWidgetClass)
 	{
 		return false;
@@ -286,6 +298,7 @@ void ABullettePlayerController::ShowGameOver()
 	}
 	GameOverWidget->ShowResults(Stats, WeaponSummary);
 	GameOverWidget->AddToViewport(10);
+	BulletteAudio::PlaySound(this, GameOverSound, true, 0.0f);
 
 	SetPause(true);
 	FInputModeUIOnly InputMode;

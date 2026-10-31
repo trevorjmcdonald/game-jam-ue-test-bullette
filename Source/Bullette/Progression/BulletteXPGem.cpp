@@ -3,6 +3,7 @@
 #include "AbilitySystem/BulletteCombatSet.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
+#include "Audio/BulletteAudio.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Kismet/GameplayStatics.h"
@@ -64,6 +65,7 @@ void ABulletteXPGem::Tick(float DeltaSeconds)
 		{
 			Leveling->AddXP(XPValue);
 		}
+		BulletteAudio::PlaySound(this, CollectSound, false, 0.08f);
 		Destroy();
 		return;
 	}

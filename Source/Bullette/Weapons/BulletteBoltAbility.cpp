@@ -18,6 +18,11 @@ void UBulletteBoltAbility::Fire()
 
 	TArray<ABulletteEnemy*> Targets;
 	Enemies->FindNearestEnemies(Avatar->GetActorLocation(), Range, GetCount(), Targets);
+	if (Targets.IsEmpty())
+	{
+		return;
+	}
+	PlayFireSound();
 
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
 	const float HitDamage = GetDamage();

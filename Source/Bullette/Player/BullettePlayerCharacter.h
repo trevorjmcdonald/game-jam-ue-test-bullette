@@ -13,6 +13,7 @@ class UBulletteLevelingComponent;
 struct FOnAttributeChangeData;
 class UCameraComponent;
 class UInputAction;
+class USoundBase;
 class USpringArmComponent;
 class UStaticMeshComponent;
 struct FInputActionValue;
@@ -92,13 +93,25 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation", meta = (ClampMin = "0", Units = "cm/s"))
 	float RunSpeedThreshold = 20.0f;
 
+	/** Played when the player takes damage and survives, at most once per HurtSoundInterval. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Audio")
+	TObjectPtr<USoundBase> HurtSound;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Audio", meta = (ClampMin = "0", Units = "s"))
+	float HurtSoundInterval = 0.3f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Audio")
+	TObjectPtr<USoundBase> DeathSound;
+
 public:
 	virtual void Tick(float DeltaSeconds) override;
 
 private:
 	void HandleOutOfHealth(AActor* DamageInstigator);
 	void HandleMoveSpeedChanged(const FOnAttributeChangeData& Data);
+	void HandleHealthChanged(const FOnAttributeChangeData& Data);
 
 	const UAnimationAsset* PlayingAnimation = nullptr;
+	double LastHurtSoundTime = -1.0e9;
 	bool bDead = false;
 };

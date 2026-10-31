@@ -4,7 +4,9 @@
 #include "AbilitySystem/BulletteCombatSet.h"
 #include "AbilitySystem/BulletteDamage.h"
 #include "AbilitySystemComponent.h"
+#include "Audio/BulletteAudio.h"
 #include "GameplayEffect.h"
+#include "Sound/SoundBase.h"
 
 UBulletteWeaponAbility::UBulletteWeaponAbility()
 {
@@ -60,6 +62,11 @@ void UBulletteWeaponAbility::HandleAttackTimer()
 
 	Fire();
 	WaitForNextAttack();
+}
+
+void UBulletteWeaponAbility::PlayFireSound() const
+{
+	BulletteAudio::PlaySound(GetAvatarActorFromActorInfo(), FireSound);
 }
 
 float UBulletteWeaponAbility::GetStat(const FScalableFloat& Stat) const

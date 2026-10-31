@@ -5,6 +5,7 @@
 #include "BulletteXPGem.generated.h"
 
 class UAbilitySystemComponent;
+class USoundBase;
 class UStaticMeshComponent;
 
 /**
@@ -36,6 +37,9 @@ protected:
 	/** The gem is collected once it's this close to the player (XY). */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Pickup", meta = (ClampMin = "0", Units = "cm"))
 	float CollectDistance = 60.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Pickup")
+	TObjectPtr<USoundBase> CollectSound;
 
 private:
 	int32 XPValue = 1;

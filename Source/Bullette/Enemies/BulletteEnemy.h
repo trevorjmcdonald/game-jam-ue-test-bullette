@@ -12,6 +12,7 @@ struct FOnAttributeChangeData;
 class UAbilitySystemComponent;
 class UBulletteAttributeSet;
 class UGameplayEffect;
+class USoundBase;
 class USphereComponent;
 class UStaticMeshComponent;
 
@@ -121,6 +122,13 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Feedback", meta = (ClampMin = "0.01", Units = "s"))
 	float HitPopDuration = 0.12f;
+
+	/** Played when the enemy takes damage and survives. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Feedback|Audio")
+	TObjectPtr<USoundBase> HitSound;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Feedback|Audio")
+	TObjectPtr<USoundBase> DeathSound;
 
 private:
 	void HandleOutOfHealth(AActor* DamageInstigator);

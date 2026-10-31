@@ -3,6 +3,7 @@
 #include "AbilitySystem/BulletteAttributeSet.h"
 #include "AbilitySystem/BulletteDamage.h"
 #include "AbilitySystemComponent.h"
+#include "Audio/BulletteAudio.h"
 #include "Bullette.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/SphereComponent.h"
@@ -218,6 +219,7 @@ void ABulletteEnemy::HandleOutOfHealth(AActor* DamageInstigator)
 	}
 	bDead = true;
 	OnDied();
+	BulletteAudio::PlaySound(this, DeathSound, false, 0.1f);
 
 	if (UBulletteEnemySubsystem* Enemies = GetWorld()->GetSubsystem<UBulletteEnemySubsystem>())
 	{
@@ -259,5 +261,10 @@ void ABulletteEnemy::HandleHealthChanged(const FOnAttributeChangeData& Data)
 	if (!bDead && Data.NewValue < Data.OldValue)
 	{
 		LastHitTime = GetWorld()->GetTimeSeconds();
+		// A killing hit plays DeathSound instead.
+		if (Data.NewValue > 0.0f)
+		{
+			BulletteAudio::PlaySound(this, HitSound, false, 0.1f);
+		}
 	}
 }

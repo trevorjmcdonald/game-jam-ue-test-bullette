@@ -1,6 +1,7 @@
 #include "Enemies/BulletteCasterEnemy.h"
 
 #include "AbilitySystemComponent.h"
+#include "Audio/BulletteAudio.h"
 #include "Components/StateTreeComponent.h"
 #include "Enemies/BulletteEnemyProjectile.h"
 #include "Engine/World.h"
@@ -54,5 +55,6 @@ void ABulletteCasterEnemy::FireAtTarget()
 	if (ABulletteEnemyProjectile* Projectile = GetWorld()->SpawnActor<ABulletteEnemyProjectile>(ProjectileClass, Start, Direction.Rotation(), SpawnParams))
 	{
 		Projectile->Init(AbilitySystemComponent, ContactDamageEffect, ProjectileDamage, GetTarget());
+		BulletteAudio::PlaySound(this, FireSound);
 	}
 }

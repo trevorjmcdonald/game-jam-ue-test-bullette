@@ -1,5 +1,7 @@
 #include "Player/BulletteMenuPlayerController.h"
 
+#include "Audio/BulletteAudio.h"
+#include "Components/AudioComponent.h"
 #include "Components/Button.h"
 #include "UI/BulletteMenuWidget.h"
 
@@ -22,4 +24,6 @@ void ABulletteMenuPlayerController::BeginPlay()
 	}
 	SetInputMode(InputMode);
 	SetShowMouseCursor(true);
+
+	MusicComponent = BulletteAudio::PlayMusic(this, MenuMusic);
 }

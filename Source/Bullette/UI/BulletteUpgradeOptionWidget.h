@@ -6,6 +6,7 @@
 
 class UBulletteUpgradeDefinition;
 class UButton;
+class USoundBase;
 class UTextBlock;
 
 DECLARE_DELEGATE_OneParam(FBulletteUpgradeChosenDelegate, const UBulletteUpgradeDefinition* /*Upgrade*/);
@@ -36,6 +37,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Style")
 	FLinearColor FocusedColor = FLinearColor(0.95f, 0.65f, 0.15f);
 
+	/** Played when this card gains focus, except for the focus it's given as the screen opens. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Audio")
+	TObjectPtr<USoundBase> FocusSound;
+
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UButton> SelectButton;
 
@@ -54,6 +59,9 @@ private:
 
 	FLinearColor NormalColor = FLinearColor::White;
 	bool bShowingFocus = false;
+
+	/** Real time (the game is paused) when SetUpgrade last filled the card. */
+	double ShownRealTime = 0.0;
 
 	UPROPERTY()
 	TObjectPtr<const UBulletteUpgradeDefinition> Upgrade;

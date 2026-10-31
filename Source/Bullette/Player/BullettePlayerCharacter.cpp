@@ -3,6 +3,7 @@
 #include "AbilitySystem/BulletteAttributeSet.h"
 #include "AbilitySystem/BulletteCombatSet.h"
 #include "AbilitySystemComponent.h"
+#include "Audio/BulletteAudio.h"
 #include "Camera/CameraComponent.h"
 #include "Animation/AnimationAsset.h"
 #include "Components/CapsuleComponent.h"
@@ -96,11 +97,24 @@ void ABullettePlayerCharacter::PostInitializeComponents()
 	GetCharacterMovement()->MaxWalkSpeed = StartingMoveSpeed;
 	AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(UBulletteCombatSet::GetMoveSpeedAttribute())
 		.AddUObject(this, &ABullettePlayerCharacter::HandleMoveSpeedChanged);
+	AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(UBulletteAttributeSet::GetHealthAttribute())
+		.AddUObject(this, &ABullettePlayerCharacter::HandleHealthChanged);
 }
 
 void ABullettePlayerCharacter::HandleMoveSpeedChanged(const FOnAttributeChangeData& Data)
 {
 	GetCharacterMovement()->MaxWalkSpeed = Data.NewValue;
+}
+
+void ABullettePlayerCharacter::HandleHealthChanged(const FOnAttributeChangeData& Data)
+{
+	// A killing hit plays DeathSound instead.
+	const double Now = GetWorld()->GetTimeSeconds();
+	if (!bDead && Data.NewValue < Data.OldValue && Data.NewValue > 0.0f && Now - LastHurtSoundTime >= HurtSoundInterval)
+	{
+		LastHurtSoundTime = Now;
+		BulletteAudio::PlaySound(this, HurtSound);
+	}
 }
 
 void ABullettePlayerCharacter::Tick(float DeltaSeconds)
@@ -123,6 +137,7 @@ void ABullettePlayerCharacter::Tick(float DeltaSeconds)
 void ABullettePlayerCharacter::HandleOutOfHealth(AActor* DamageInstigator)
 {
 	bDead = true;
+	BulletteAudio::PlaySound(this, DeathSound, false, 0.0f);
 	if (DeathAnimation)
 	{
 		GetMesh()->PlayAnimation(DeathAnimation, false);
