@@ -49,7 +49,7 @@ Rendering uses Lumen, hardware ray tracing, Virtual Shadow Maps and Substrate (D
 
 ```
 git lfs install
-git clone https://github.com/trevorjmcdonald/game-jam-ue-test-bulette.git
+git clone https://github.com/trevorjmcdonald/game-jam-ue-test-bullette.git
 ```
 
 Open `Bullette.uproject` and let Unreal build the module, or right-click it and choose Generate Visual Studio project files, then build `BulletteEditor` (Development Editor, Win64).
