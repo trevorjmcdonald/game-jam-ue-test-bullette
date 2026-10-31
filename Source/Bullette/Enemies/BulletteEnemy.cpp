@@ -9,6 +9,8 @@
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Enemies/BulletteEnemySubsystem.h"
+#include "Feedback/BulletteFeedbackSubsystem.h"
+#include "Feedback/BulletteHitFlashComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "Game/BulletteGameMode.h"
@@ -50,6 +52,8 @@ ABulletteEnemy::ABulletteEnemy()
 
 	// The ASC picks up attribute sets that are default subobjects of its owner.
 	AttributeSet = CreateDefaultSubobject<UBulletteAttributeSet>(TEXT("AttributeSet"));
+
+	HitFlash = CreateDefaultSubobject<UBulletteHitFlashComponent>(TEXT("HitFlash"));
 }
 
 UAbilitySystemComponent* ABulletteEnemy::GetAbilitySystemComponent() const
@@ -220,6 +224,7 @@ void ABulletteEnemy::HandleOutOfHealth(AActor* DamageInstigator)
 	bDead = true;
 	OnDied();
 	BulletteAudio::PlaySound(this, DeathSound, false, 0.1f);
+	BulletteFeedback::SpawnEffect(this, DeathEffect, GetActorLocation());
 
 	if (UBulletteEnemySubsystem* Enemies = GetWorld()->GetSubsystem<UBulletteEnemySubsystem>())
 	{
@@ -258,7 +263,19 @@ void ABulletteEnemy::HandleOutOfHealth(AActor* DamageInstigator)
 
 void ABulletteEnemy::HandleHealthChanged(const FOnAttributeChangeData& Data)
 {
-	if (!bDead && Data.NewValue < Data.OldValue)
+	if (Data.NewValue >= Data.OldValue)
+	{
+		return;
+	}
+
+	// Number and flash for every hit, the killing one included (it may arrive after HandleOutOfHealth).
+	if (UBulletteFeedbackSubsystem* Feedback = UBulletteFeedbackSubsystem::Get(this))
+	{
+		Feedback->AddDamageNumber(GetActorLocation() + FVector(0.0, 0.0, DamageNumberHeight), Data.OldValue - Data.NewValue, false);
+	}
+	HitFlash->Flash();
+
+	if (!bDead)
 	{
 		LastHitTime = GetWorld()->GetTimeSeconds();
 		// A killing hit plays DeathSound instead.

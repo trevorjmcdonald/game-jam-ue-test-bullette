@@ -14,9 +14,11 @@ A complete but unbalanced loop:
 - **Screens:** a HUD, level-up choices, a game over screen with restart, a main menu and a pause menu.
 - **Audio:** chiptune music and arcade sound effects.
 - **Options:** volume sliders and keyboard/gamepad rebinding, saved between sessions, plus a best-run record.
+- **Feedback:** hit flashes, damage numbers, camera shake on hits, and particle bursts for deaths and pickups.
+- **A graveyard arena** built from KayKit props.
 - **Runs on the Steam Deck** under Proton.
 
-Not yet: balancing and polish.
+Not yet: balancing.
 
 ## Controls
 
@@ -32,7 +34,7 @@ The project leans on Unreal's built-in systems on purpose, to learn them:
 
 - **Gameplay Ability System:** weapons are abilities; damage, health and upgrades are gameplay effects and attributes.
 - **StateTree:** runs the mage's behavior. The tree asset is generated from C++.
-- **Niagara:** the chain lightning effect, triggered through a gameplay cue.
+- **Niagara:** the chain lightning effect (triggered through a gameplay cue) and the death and pickup bursts.
 - **UMG + MVVM:** the HUD is driven by view model bindings.
 - **Curve tables:** per-level weapon stats come from `SourceData/WeaponStats.csv`.
 - **Enhanced Input:** including its player-mappable key settings for rebinding.
@@ -64,7 +66,7 @@ Open `Bullette.uproject` and let Unreal build the module, or right-click it and 
 
 ## Credits
 
-- Characters and weapons: [KayKit](https://kaylousberg.com) Adventurers and Skeletons packs by Kay Lousberg (CC0).
+- Characters, weapons and the arena: [KayKit](https://kaylousberg.com) Adventurers, Skeletons, Halloween Bits and Dungeon Remastered packs by Kay Lousberg (CC0).
 - Music: [Retro Game Music Pack](https://opengameart.org/content/5-chiptunes-action) by Juhani Junkala (CC0).
 - Sound effects: [Kenney](https://kenney.nl) audio packs (CC0). `SourceAudio/README.md` lists which file each sound came from.
 - Unreal Engine skills in `.claude/skills/ue-*`: [quodsoler/unreal-engine-skills](https://github.com/quodsoler/unreal-engine-skills) (MIT).

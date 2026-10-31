@@ -35,4 +35,5 @@ powershell -File tools/deploy-deck.ps1 -AddToSteam    # first deploy only: adds 
     ```
     The staging run takes about a minute. The whole cook (with cached shaders) took about 15 minutes.
   - **2026-10-31: no hang, and fast.** A `-Package` after adding audio (625 packages) cooked in 9 s and the whole BuildCookRun took 41 s, exiting cleanly. Watch for the hang anyway; it may come back after bigger changes.
+  - **2026-10-31 (later): it came back when there were new shaders to compile** (a new ground material, about 20 new Nanite props). The cook sat 15 minutes on `No shader compile worker state change in 900.00 seconds` before finishing, then hung at exit as described above. The workaround (kill `UnrealEditor-Cmd`, stage with `-skipcook`) worked; staging took 34 s. The script's `-Package` also refuses to run while the editor is open.
   - **The cook writes to the Zen store** (`Saved/Cooked/Windows/ue.projectstore`), so `Saved/Cooked` has no loose `.uasset`s to check. To confirm an asset shipped, search the packaged table of contents: `grep -c -a <AssetName> Packaged/Windows/Bullette/Content/Paks/Bullette-Windows.utoc`.

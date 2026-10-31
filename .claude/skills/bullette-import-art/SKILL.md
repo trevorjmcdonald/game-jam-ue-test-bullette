@@ -30,6 +30,12 @@ The import exits cleanly in about 7 s. Don't add an MCP `-ini` override (see CLA
 - **Prop meshes (weapons, shields) keep the offset of the hand that held them,** about (-90, 50, 105) from their pivot. Get the real centre with `StaticMeshTools.get_bounds` and cancel it in whatever transform places the mesh (location = -(rotation × scale × centre)). `1H_Sword` lies flat along +Y (tip at +Y); `1H_Axe` lies flat with its handle along +Y.
 - **They face +Y after import.** Unreal actors face +X, so give the mesh component a yaw of -90.
 
+## Arena props
+
+- `SourceArt/KayKit/HalloweenBits` and `SourceArt/KayKit/DungeonRemastered` (CC0, licences alongside) were imported as static meshes to `/Game/Art/KayKit/{HalloweenBits,DungeonRemastered}/<name>/StaticMeshes`. They're in metres like the characters; about 0.7 scale suits the 0.55-scale skeletons, 0.8-1.1 for trees.
+- Every mesh uses the first import's material (`HalloweenBits/arch/Materials/HalloweenBits`, `DungeonRemastered/column/Materials/texture`); the per-mesh duplicates were deleted. Re-importing a prop brings its duplicate back, so repoint it.
+- Collision was removed from all of them, so the player walks through props. Nanite is on (the import default).
+
 ## Current weapon art
 
 - Orbiting blades: Knight `1H_Sword`, scale 1, yaw 180, centred and 30 cm below the orbit point (`GA_Weapon_Orbit.BladeTransform`).

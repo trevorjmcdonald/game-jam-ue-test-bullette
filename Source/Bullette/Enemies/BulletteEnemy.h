@@ -12,6 +12,8 @@ struct FOnAttributeChangeData;
 class UAbilitySystemComponent;
 class UBulletteAttributeSet;
 class UGameplayEffect;
+class UBulletteHitFlashComponent;
+class UNiagaraSystem;
 class USoundBase;
 class USphereComponent;
 class UStaticMeshComponent;
@@ -71,6 +73,10 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Abilities")
 	TObjectPtr<UAbilitySystemComponent> AbilitySystemComponent;
 
+	/** Flashes the body mesh white when hit. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Feedback")
+	TObjectPtr<UBulletteHitFlashComponent> HitFlash;
+
 	UPROPERTY()
 	TObjectPtr<UBulletteAttributeSet> AttributeSet;
 
@@ -122,6 +128,14 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Feedback", meta = (ClampMin = "0.01", Units = "s"))
 	float HitPopDuration = 0.12f;
+
+	/** Damage numbers appear this far above the actor origin. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Feedback", meta = (Units = "cm"))
+	float DamageNumberHeight = 90.0f;
+
+	/** One-shot Niagara burst where the enemy dies. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Feedback")
+	TObjectPtr<UNiagaraSystem> DeathEffect;
 
 	/** Played when the enemy takes damage and survives. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Feedback|Audio")

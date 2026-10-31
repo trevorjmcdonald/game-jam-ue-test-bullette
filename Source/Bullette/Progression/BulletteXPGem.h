@@ -5,6 +5,7 @@
 #include "BulletteXPGem.generated.h"
 
 class UAbilitySystemComponent;
+class UNiagaraSystem;
 class USoundBase;
 class UStaticMeshComponent;
 
@@ -40,6 +41,10 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Pickup")
 	TObjectPtr<USoundBase> CollectSound;
+
+	/** One-shot Niagara burst where the gem is collected. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Pickup")
+	TObjectPtr<UNiagaraSystem> CollectEffect;
 
 private:
 	int32 XPValue = 1;

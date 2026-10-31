@@ -17,6 +17,7 @@
 #include "Progression/BulletteLevelingComponent.h"
 #include "Progression/BulletteUpgradeDefinition.h"
 #include "TimerManager.h"
+#include "UI/BulletteDamageNumbersWidget.h"
 #include "UI/BulletteGameOverWidget.h"
 #include "UI/BulletteHUDWidget.h"
 #include "UI/BulletteLevelUpWidget.h"
@@ -47,6 +48,11 @@ void ABullettePlayerController::BeginPlay()
 		}
 	}
 
+	if (DamageNumbersWidgetClass)
+	{
+		DamageNumbersWidget = CreateWidget<UBulletteDamageNumbersWidget>(this, DamageNumbersWidgetClass);
+		DamageNumbersWidget->AddToViewport(-1);
+	}
 	if (ensureMsgf(HUDWidgetClass, TEXT("%s has no HUDWidgetClass assigned"), *GetName()))
 	{
 		HUDWidget = CreateWidget<UBulletteHUDWidget>(this, HUDWidgetClass);

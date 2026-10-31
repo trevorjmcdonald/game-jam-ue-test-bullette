@@ -6,6 +6,7 @@
 
 class UAudioComponent;
 class UBulletteGameOverWidget;
+class UBulletteDamageNumbersWidget;
 class UBulletteHUDWidget;
 class UBulletteLevelUpWidget;
 class UBullettePauseMenuWidget;
@@ -48,6 +49,10 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HUD")
 	TSubclassOf<UBulletteHUDWidget> HUDWidgetClass;
+
+	/** Full-screen layer under the HUD that draws damage numbers. Leave empty for none. */
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TSubclassOf<UBulletteDamageNumbersWidget> DamageNumbersWidgetClass;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Level Up")
 	TSubclassOf<UBulletteLevelUpWidget> LevelUpWidgetClass;
@@ -109,6 +114,9 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UBulletteHUDWidget> HUDWidget;
+
+	UPROPERTY()
+	TObjectPtr<UBulletteDamageNumbersWidget> DamageNumbersWidget;
 
 	UPROPERTY()
 	TObjectPtr<UBulletteLevelUpWidget> LevelUpWidget;

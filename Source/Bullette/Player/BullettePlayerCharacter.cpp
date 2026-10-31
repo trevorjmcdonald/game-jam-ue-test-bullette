@@ -12,6 +12,9 @@
 #include "EnhancedInputComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
+#include "Feedback/BulletteCameraShake.h"
+#include "Feedback/BulletteFeedbackSubsystem.h"
+#include "Feedback/BulletteHitFlashComponent.h"
 #include "Game/BulletteGameMode.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
@@ -72,6 +75,11 @@ ABullettePlayerCharacter::ABullettePlayerCharacter()
 	CombatSet = CreateDefaultSubobject<UBulletteCombatSet>(TEXT("CombatSet"));
 
 	Leveling = CreateDefaultSubobject<UBulletteLevelingComponent>(TEXT("Leveling"));
+
+	HitFlash = CreateDefaultSubobject<UBulletteHitFlashComponent>(TEXT("HitFlash"));
+	HitFlash->FlashColor = FLinearColor(2.5f, 0.1f, 0.05f, 1.0f);
+	HitFlash->Duration = 0.2f;
+	HurtCameraShake = UBulletteCameraShake::StaticClass();
 }
 
 UAbilitySystemComponent* ABullettePlayerCharacter::GetAbilitySystemComponent() const
@@ -108,12 +116,33 @@ void ABullettePlayerCharacter::HandleMoveSpeedChanged(const FOnAttributeChangeDa
 
 void ABullettePlayerCharacter::HandleHealthChanged(const FOnAttributeChangeData& Data)
 {
-	// A killing hit plays DeathSound instead.
+	if (bDead || Data.NewValue >= Data.OldValue)
+	{
+		return;
+	}
+
+	if (UBulletteFeedbackSubsystem* Feedback = UBulletteFeedbackSubsystem::Get(this))
+	{
+		Feedback->AddDamageNumber(GetActorLocation() + FVector(0.0, 0.0, DamageNumberHeight), Data.OldValue - Data.NewValue, true);
+	}
+	HitFlash->Flash();
+
+	// A killing hit plays DeathSound and the death shake instead.
 	const double Now = GetWorld()->GetTimeSeconds();
-	if (!bDead && Data.NewValue < Data.OldValue && Data.NewValue > 0.0f && Now - LastHurtSoundTime >= HurtSoundInterval)
+	if (Data.NewValue > 0.0f && Now - LastHurtSoundTime >= HurtSoundInterval)
 	{
 		LastHurtSoundTime = Now;
 		BulletteAudio::PlaySound(this, HurtSound);
+		PlayCameraShake(HurtShakeScale);
+	}
+}
+
+void ABullettePlayerCharacter::PlayCameraShake(float Scale) const
+{
+	APlayerController* PC = Cast<APlayerController>(GetController());
+	if (PC && HurtCameraShake && Scale > 0.0f)
+	{
+		PC->ClientStartCameraShake(HurtCameraShake, Scale);
 	}
 }
 
@@ -138,6 +167,7 @@ void ABullettePlayerCharacter::HandleOutOfHealth(AActor* DamageInstigator)
 {
 	bDead = true;
 	BulletteAudio::PlaySound(this, DeathSound, false, 0.0f);
+	PlayCameraShake(DeathShakeScale);
 	if (DeathAnimation)
 	{
 		GetMesh()->PlayAnimation(DeathAnimation, false);

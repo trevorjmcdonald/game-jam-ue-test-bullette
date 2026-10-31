@@ -9,6 +9,8 @@ class UAbilitySystemComponent;
 class UAnimationAsset;
 class UBulletteAttributeSet;
 class UBulletteCombatSet;
+class UBulletteHitFlashComponent;
+class UCameraShakeBase;
 class UBulletteLevelingComponent;
 struct FOnAttributeChangeData;
 class UCameraComponent;
@@ -50,6 +52,24 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Leveling")
 	TObjectPtr<UBulletteLevelingComponent> Leveling;
+
+	/** Flashes the character red when hurt. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Feedback")
+	TObjectPtr<UBulletteHitFlashComponent> HitFlash;
+
+	/** Played on the player camera when hurt (at most once per HurtSoundInterval) and on death. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Feedback")
+	TSubclassOf<UCameraShakeBase> HurtCameraShake;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Feedback", meta = (ClampMin = "0"))
+	float HurtShakeScale = 1.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Feedback", meta = (ClampMin = "0"))
+	float DeathShakeScale = 3.0f;
+
+	/** Damage numbers for hits on the player appear this far above the actor origin. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Feedback", meta = (Units = "cm"))
+	float DamageNumberHeight = 120.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Health", meta = (ClampMin = "1"))
 	float MaxHealth = 100.0f;
@@ -110,6 +130,7 @@ private:
 	void HandleOutOfHealth(AActor* DamageInstigator);
 	void HandleMoveSpeedChanged(const FOnAttributeChangeData& Data);
 	void HandleHealthChanged(const FOnAttributeChangeData& Data);
+	void PlayCameraShake(float Scale) const;
 
 	const UAnimationAsset* PlayingAnimation = nullptr;
 	double LastHurtSoundTime = -1.0e9;
