@@ -1,0 +1,20 @@
+{
+  "name": "bot_circle",
+  "about": "A simple bot: walks a wide square around the arena (the weapons fire on their own), picks a perk at random whenever a level-up offers one, and plays until it dies or five minutes pass, checking that level-ups were offered and answered. Run it over seeds for averages: tools/play-script.ps1 Tests/Scripts/bot_circle.json -Seeds 1,2,3,4,5 -FixedStep 60 -Quiet",
+  "timeout": 420,
+  "report": "gameover",
+  "on": [
+    {"event": "choice", "contains": "LevelUp", "do": [{"choose": "LevelUp", "random": true}]}
+  ],
+  "steps": [
+    {"open": "/Game/Maps/L_Arena", "settle": 2},
+    {"repeat": [
+      {"hold": "IA_Move", "value": [1, 0], "seconds": 4},
+      {"hold": "IA_Move", "value": [0, 1], "seconds": 4},
+      {"hold": "IA_Move", "value": [-1, 0], "seconds": 4},
+      {"hold": "IA_Move", "value": [0, -1], "seconds": 4}
+    ], "seconds": 300, "until": {"event": "gameover"}},
+    {"expect": "levelup", "since": "start", "count": 2},
+    {"expect": "chose", "contains": "LevelUp", "since": "start", "count": 2}
+  ]
+}

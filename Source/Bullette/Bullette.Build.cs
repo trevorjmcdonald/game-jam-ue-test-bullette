@@ -13,6 +13,9 @@ public class Bullette : ModuleRules
 
 		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "GameplayAbilities", "GameplayTags", "GameplayTasks" });
 
+		// The Jam Kit plugin: seeded randomness, the trace, offered choices and the unattended runs (probe, scripts).
+		PublicDependencyModuleNames.Add("JamKit");
+
 		// UMG and MVVM are public because UI headers derive from UUserWidget and UMVVMViewModelBase.
 		PublicDependencyModuleNames.AddRange(new string[] { "UMG", "ModelViewViewModel", "FieldNotification" });
 		PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });

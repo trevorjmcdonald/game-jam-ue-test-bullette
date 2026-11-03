@@ -1,0 +1,18 @@
+{
+  "name": "levelup_pick",
+  "about": "Steers across the arena and back with the move action, waits for the first level-up, takes a weapon if one is offered (else the first option) and checks the pick was applied. Seed 7 offers the Boomerang Axe first.",
+  "seed": 7,
+  "timeout": 120,
+  "steps": [
+    {"open": "/Game/Maps/L_Arena", "settle": 2},
+    {"moveTo": [1500, 0, 90], "frame": "world", "radius": 150, "within": 10},
+    {"moveTo": [0, 1500, 90], "frame": "world", "radius": 150, "within": 10},
+    {"moveTo": [0, 0, 90], "frame": "world", "radius": 150, "within": 10},
+    {"waitFor": "choice", "contains": "LevelUp", "within": 60},
+    {"shot": "level_up_screen"},
+    {"choose": "LevelUp", "prefer": ["Weapon_Orbit", "Weapon"]},
+    {"expect": "chose", "contains": "LevelUp"},
+    {"expect": "upgrade", "contains": "Weapon_"},
+    {"shot": "after_choice"}
+  ]
+}

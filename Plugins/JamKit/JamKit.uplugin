@@ -1,0 +1,28 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "0.1",
+	"FriendlyName": "Jam Kit",
+	"Description": "Reusable game shell for jam games: main/pause/options/credits menus with gamepad focus, key rebinding, saved volume settings, level fades, hit feedback (flash, shake, damage numbers) and a Steam Deck graphics profile.",
+	"Category": "Gameplay",
+	"CreatedBy": "",
+	"CanContainContent": true,
+	"IsBetaVersion": true,
+	"Modules": [
+		{
+			"Name": "JamKit",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "EnhancedInput",
+			"Enabled": true
+		},
+		{
+			"Name": "Niagara",
+			"Enabled": true
+		}
+	]
+}

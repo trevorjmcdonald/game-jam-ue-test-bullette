@@ -4,6 +4,7 @@
 #include "Enemies/BulletteEnemy.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
+#include "Random/JamKitRandom.h"
 #include "TimerManager.h"
 
 ABulletteEnemySpawner::ABulletteEnemySpawner()
@@ -75,7 +76,7 @@ void ABulletteEnemySpawner::SpawnWave()
 
 	for (int32 Index = 0; Index < ToSpawn; ++Index)
 	{
-		const double Angle = FMath::FRandRange(0.0, UE_TWO_PI);
+		const double Angle = JamKitRandom::Stream(this, TEXT("Spawns")).FRandRange(0.0, UE_TWO_PI);
 		FVector SpawnLocation = PlayerLocation + FVector(FMath::Cos(Angle), FMath::Sin(Angle), 0.0) * SpawnRadius;
 		SpawnLocation.X = FMath::Clamp(SpawnLocation.X, ArenaCenter.X - ArenaHalfExtent, ArenaCenter.X + ArenaHalfExtent);
 		SpawnLocation.Y = FMath::Clamp(SpawnLocation.Y, ArenaCenter.Y - ArenaHalfExtent, ArenaCenter.Y + ArenaHalfExtent);
@@ -105,7 +106,7 @@ TSubclassOf<ABulletteEnemy> ABulletteEnemySpawner::PickEnemyClass() const
 		}
 	}
 
-	float Roll = FMath::FRandRange(0.0f, TotalWeight);
+	float Roll = static_cast<float>(JamKitRandom::Stream(this, TEXT("Spawns")).FRandRange(0.0f, TotalWeight));
 	for (const FBulletteEnemySpawnEntry& Entry : SpawnTable)
 	{
 		if (Entry.EnemyClass && Entry.FirstWave <= WaveNumber && Entry.Weight > 0.0f)

@@ -14,6 +14,7 @@
 #include "Game/BulletteSettingsSubsystem.h"
 #include "GameplayEffect.h"
 #include "InputMappingContext.h"
+#include "Random/JamKitRandom.h"
 #include "Progression/BulletteLevelingComponent.h"
 #include "Progression/BulletteUpgradeDefinition.h"
 #include "TimerManager.h"
@@ -22,6 +23,9 @@
 #include "UI/BulletteHUDWidget.h"
 #include "UI/BulletteLevelUpWidget.h"
 #include "UI/BullettePauseMenuWidget.h"
+#include "Verify/JamKitChoice.h"
+#include "Verify/JamKitTrace.h"
+#include "Verify/JamKitVerify.h"
 #include "Weapons/BulletteWeaponAbility.h"
 
 void ABullettePlayerController::BeginPlay()
@@ -138,6 +142,7 @@ void ABullettePlayerController::HandleLevelUp(int32 NewLevel)
 	}
 
 	++PendingLevelUps;
+	JamKitTrace::Event(this, TEXT("levelup"), FString::FromInt(NewLevel));
 	if (!LevelUpWidget || !LevelUpWidget->IsInViewport())
 	{
 		ShowNextLevelUp();
@@ -169,7 +174,7 @@ void ABullettePlayerController::ShowNextLevelUp()
 	const int32 NumChoices = FMath::Min(ChoicesPerLevel, Eligible.Num());
 	for (int32 Index = 0; Index < NumChoices; ++Index)
 	{
-		Eligible.Swap(Index, FMath::RandRange(Index, Eligible.Num() - 1));
+		Eligible.Swap(Index, JamKitRandom::Stream(this, TEXT("Perks")).RandRange(Index, Eligible.Num() - 1));
 	}
 
 	if (!LevelUpWidget)
@@ -180,6 +185,22 @@ void ABullettePlayerController::ShowNextLevelUp()
 
 	++LevelBeingChosen;
 	LevelUpWidget->ShowChoices(LevelBeingChosen, TConstArrayView<FBulletteUpgradeChoice>(Eligible.GetData(), NumChoices));
+
+	// The same choice for a script or a bot (the kit's choice registry): picking runs the buttons' handler.
+	TArray<FName> OptionNames;
+	TArray<TWeakObjectPtr<const UBulletteUpgradeDefinition>> Offered;
+	for (int32 Index = 0; Index < NumChoices; ++Index)
+	{
+		OptionNames.Add(Eligible[Index].Upgrade ? Eligible[Index].Upgrade->GetFName() : NAME_None);
+		Offered.Add(Eligible[Index].Upgrade);
+	}
+	JamKitChoice::Offer(this, TEXT("LevelUp"), OptionNames, [WeakThis = TWeakObjectPtr<ABullettePlayerController>(this), Offered](int32 Index)
+	{
+		if (ABullettePlayerController* Self = WeakThis.Get(); Self && Offered.IsValidIndex(Index))
+		{
+			Self->HandleUpgradeChosen(Offered[Index].Get());
+		}
+	});
 	if (!LevelUpWidget->IsInViewport())
 	{
 		LevelUpWidget->AddToViewport();
@@ -198,6 +219,7 @@ void ABullettePlayerController::ShowNextLevelUp()
 
 void ABullettePlayerController::HandleUpgradeChosen(const UBulletteUpgradeDefinition* Upgrade)
 {
+	JamKitChoice::Resolved(this, TEXT("LevelUp"), Upgrade ? Upgrade->GetFName() : NAME_None);
 	ApplyUpgrade(Upgrade);
 	BulletteAudio::PlaySound(this, UpgradeChosenSound, true, 0.0f);
 
@@ -233,6 +255,8 @@ void ABullettePlayerController::ApplyUpgrade(const UBulletteUpgradeDefinition* U
 	}
 
 	const int32 Picks = TimesPicked.FindRef(Upgrade) + 1;
+	JamKitTrace::Event(this, TEXT("upgrade"), Upgrade->GetName(), FJamKitTraceFields().Add(TEXT("picks"), Picks)
+		.Add(TEXT("weapon"), Upgrade->WeaponAbility != nullptr));
 	if (Upgrade->WeaponAbility)
 	{
 		// Weapon level = number of picks. Raising the level is a spec change, not a new grant.
@@ -310,8 +334,12 @@ void ABullettePlayerController::ShowGameOver()
 	};
 
 	// Recorded once per run: the game over screen only appears once before the level reloads.
+	JamKitTrace::Event(this, TEXT("gameover"), FString::Printf(TEXT("%d:%02d"), Seconds / 60, Seconds % 60), FJamKitTraceFields()
+		.Add(TEXT("survived"), SurvivedSeconds).Add(TEXT("level"), Leveling ? Leveling->GetLevel() : 1).Add(TEXT("kills"), Kills));
+
 	FText BestLine;
-	if (UBulletteSettingsSubsystem* Settings = UBulletteSettingsSubsystem::Get(this))
+	UBulletteSettingsSubsystem* Settings = JamKitVerify::IsUnattended() ? nullptr : UBulletteSettingsSubsystem::Get(this);
+	if (Settings)
 	{
 		BestLine = Settings->RecordRun(SurvivedSeconds, Kills)
 			? NSLOCTEXT("Bullette", "NewBest", "New best!")
